@@ -43,7 +43,11 @@ namespace mongo {
               compression("snappy"),
               crashSafeCounters(false),
               singleDeleteIndex(false),
-        //terark begin
+              //rocks add
+              targetFileSizeMultiplier(5),
+              numLevels(7),
+              targetFileSizeBase(512ull << 20),
+                //terark begin
               indexNestLevel(3),
               checksumLevel(1),
               entropyAlgo("none"),
@@ -59,7 +63,7 @@ namespace mongo {
               hardZipWorkingMemLimit(32ull << 30),
               smallTaskMemory(1200ull << 20),
               indexCacheRatio(0.0)
-        //terark end
+              //terark end
         {}
 
         Status add(moe::OptionSection* options);
@@ -74,6 +78,11 @@ namespace mongo {
         bool crashSafeCounters;
         bool counters;
         bool singleDeleteIndex;
+
+
+        int targetFileSizeMultiplier;
+        int numLevels;
+        unsigned long long targetFileSizeBase;
 
         //terark begin
         int indexNestLevel;

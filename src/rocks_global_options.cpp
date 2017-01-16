@@ -88,6 +88,31 @@ namespace mongo {
                                "Use this only if you know what you're doing")
             .setDefault(moe::Value(false));
 
+        // rocks add
+
+        rocksOptions
+                .addOptionChaining("storage.rocksdb.targetFileSizeMultiplier",
+                                   "rocksdbTargetFileSizeMultiplier",
+                                   moe::Int,
+                                   "Rocksdb target file size multiplier.")
+                .validRange(1, 100)
+                .setDefault(moe::Value(5));
+
+        rocksOptions
+                .addOptionChaining("storage.rocksdb.numLevels",
+                                   "rocksdbNumLevels",
+                                   moe::Int,
+                                   "Rocksdb max level number.")
+                .validRange(1, 20)
+                .setDefault(moe::Value(7));
+
+        rocksOptions
+                .addOptionChaining("storage.rocksdb.targetFileSizeBase",
+                                   "rocksdbTargetFileSizeBase",
+                                   moe::UnsignedLongLong,
+                                   "Rocksdb target file size base. (default 512M)")
+                .setDefault(moe::Value(512ull << 20));
+
         // terark begin
 
         rocksOptions
@@ -270,7 +295,22 @@ namespace mongo {
               params["storage.rocksdb.singleDeleteIndex"].as<bool>();
             log() << "Use SingleDelete in index: " << rocksGlobalOptions.singleDeleteIndex;
         }
-
+        //rocks add
+        if (params.count("storage.rocksdb.terark.targetFileSizeMultiplier")) {
+            rocksGlobalOptions.targetFileSizeMultiplier =
+                    params["storage.rocksdb.terark.targetFileSizeMultiplier"].as<int>();
+            log() << "TargetFileSizeMultiplier: " << rocksGlobalOptions.targetFileSizeMultiplier;
+        }
+        if (params.count("storage.rocksdb.terark.numLevels")) {
+            rocksGlobalOptions.numLevels =
+                    params["storage.rocksdb.terark.numLevels"].as<int>();
+            log() << "NumLevels: " << rocksGlobalOptions.numLevels;
+        }
+        if (params.count("storage.rocksdb.terark.targetFileSizeBase")) {
+            rocksGlobalOptions.targetFileSizeBase =
+                    params["storage.rocksdb.terark.targetFileSizeBase"].as<unsigned long long>();
+            log() << "TargetFileSizeBase: " << rocksGlobalOptions.targetFileSizeBase;
+        }
         //terark begin
         if (params.count("storage.rocksdb.terark.indexNestLevel")) {
             rocksGlobalOptions.indexNestLevel =
