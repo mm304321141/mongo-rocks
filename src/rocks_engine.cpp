@@ -627,13 +627,13 @@ namespace mongo {
         terark_zip_table_options.useSuffixArrayLocalMatch = rocksGlobalOptions.useSuffixArrayLocalMatch;
         terark_zip_table_options.warmUpIndexOnOpen = rocksGlobalOptions.warmUpIndexOnOpen;
         terark_zip_table_options.warmUpValueOnOpen = rocksGlobalOptions.warmUpValueOnOpen;
-        terark_zip_table_options.estimateCompressionRatio = rocksGlobalOptions.estimateCompressionRatio;
+        terark_zip_table_options.estimateCompressionRatio = float(rocksGlobalOptions.estimateCompressionRatio);
         terark_zip_table_options.sampleRatio = rocksGlobalOptions.sampleRatio;
         terark_zip_table_options.localTempDir = rocksGlobalOptions.localTempDir;
         terark_zip_table_options.indexType = rocksGlobalOptions.indexType;
-        terark_zip_table_options.softZipWorkingMemLimit = rocksGlobalOptions.softZipWorkingMemLimit;
-        terark_zip_table_options.hardZipWorkingMemLimit = rocksGlobalOptions.hardZipWorkingMemLimit;
-        terark_zip_table_options.smallTaskMemory = rocksGlobalOptions.smallTaskMemory;
+        terark_zip_table_options.softZipWorkingMemLimit = uint64_t(rocksGlobalOptions.softZipWorkingMemLimit);
+        terark_zip_table_options.hardZipWorkingMemLimit = uint64_t(rocksGlobalOptions.hardZipWorkingMemLimit);
+        terark_zip_table_options.smallTaskMemory = uint64_t(rocksGlobalOptions.smallTaskMemory);
         terark_zip_table_options.indexCacheRatio = rocksGlobalOptions.indexCacheRatio;
         options.table_factory.reset(rocksdb::NewTerarkZipTableFactory(terark_zip_table_options, rocksdb::NewBlockBasedTableFactory(table_options)));
 

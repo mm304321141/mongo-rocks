@@ -84,14 +84,14 @@ namespace mongo {
         bool warmUpIndexOnOpen;
         bool warmUpValueOnOpen;
 
-        float estimateCompressionRatio;
+        double estimateCompressionRatio;
         double sampleRatio;
         std::string localTempDir;
         std::string indexType;
 
-        uint64_t softZipWorkingMemLimit;
-        uint64_t hardZipWorkingMemLimit;
-        uint64_t smallTaskMemory;
+        unsigned long long softZipWorkingMemLimit;
+        unsigned long long hardZipWorkingMemLimit;
+        unsigned long long smallTaskMemory;
         double indexCacheRatio;
         //terark end
     };
