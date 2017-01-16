@@ -42,7 +42,25 @@ namespace mongo {
               maxWriteMBPerSec(1024),
               compression("snappy"),
               crashSafeCounters(false),
-              singleDeleteIndex(false) {}
+              singleDeleteIndex(false),
+        //terark begin
+              indexNestLevel(3),
+              checksumLevel(1),
+              entropyAlgo("none"),
+              terarkZipMinLevel(0),
+              useSuffixArrayLocalMatch(false),
+              warmUpIndexOnOpen(true),
+              warmUpValueOnOpen(false),
+              estimateCompressionRatio(0.2),
+              sampleRatio(0.03),
+              localTempDir("/tmp"),
+              indexType("IL_256"),
+              softZipWorkingMemLimit(16ull << 30),
+              hardZipWorkingMemLimit(32ull << 30),
+              smallTaskMemory(1200ull << 20),
+              indexCacheRatio(0.0)
+        //terark end
+        {}
 
         Status add(moe::OptionSection* options);
         Status store(const moe::Environment& params, const std::vector<std::string>& args);
@@ -56,6 +74,26 @@ namespace mongo {
         bool crashSafeCounters;
         bool counters;
         bool singleDeleteIndex;
+
+        //terark begin
+        int indexNestLevel;
+        int checksumLevel;
+        std::string entropyAlgo;
+        int terarkZipMinLevel;
+        bool useSuffixArrayLocalMatch;
+        bool warmUpIndexOnOpen;
+        bool warmUpValueOnOpen;
+
+        float estimateCompressionRatio;
+        double sampleRatio;
+        std::string localTempDir;
+        std::string indexType;
+
+        uint64_t softZipWorkingMemLimit;
+        uint64_t hardZipWorkingMemLimit;
+        uint64_t smallTaskMemory;
+        double indexCacheRatio;
+        //terark end
     };
 
     extern RocksGlobalOptions rocksGlobalOptions;

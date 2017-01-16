@@ -43,6 +43,10 @@ env.Library(
         '$BUILD_DIR/third_party/shim_snappy',
         ],
     SYSLIBDEPS=["rocksdb",
+                "terark-zip-rocksdb-r",
+                "terark-zbs-r",
+                "terark-fsa-r",
+                "terark-core-r",
                 "z",
                 "bz2"] #z and bz2 are dependencies for rocks
                + dynamic_syslibdeps
