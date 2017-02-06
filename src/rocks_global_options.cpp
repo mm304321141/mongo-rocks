@@ -116,6 +116,14 @@ namespace mongo {
         // terark begin
 
         rocksOptions
+                .addOptionChaining("storage.rocksdb.terark.terarkEnable",
+                                   "terarkEnable",
+                                   moe::Bool,
+                                   "Terark enable.")
+                .setDefault(moe::Value(true))
+                .hidden();
+
+        rocksOptions
                 .addOptionChaining("storage.rocksdb.terark.indexNestLevel",
                                    "terarkIndexNestLevel",
                                    moe::Int,
@@ -312,6 +320,13 @@ namespace mongo {
             log() << "TargetFileSizeBase: " << rocksGlobalOptions.targetFileSizeBase;
         }
         //terark begin
+        if (params.count("storage.rocksdb.terark.terarkEnable")) {
+            rocksGlobalOptions.terarkEnable =
+                    params["storage.rocksdb.terark.terarkEnable"].as<bool>();
+            log() << "Terark terarkEnable: " << rocksGlobalOptions.terarkEnable;
+        }
+        if (rocksGlobalOptions.terarkEnable) {
+
         if (params.count("storage.rocksdb.terark.indexNestLevel")) {
             rocksGlobalOptions.indexNestLevel =
                     params["storage.rocksdb.terark.indexNestLevel"].as<int>();
@@ -387,6 +402,8 @@ namespace mongo {
                     params["storage.rocksdb.terark.indexCacheRatio"].as<double>();
             log() << "Terark IndexCacheRatio: " << rocksGlobalOptions.indexCacheRatio;
         }
+
+        } // if (rocksGlobalOptions.terarkEnable)
         //terark end
 
         return Status::OK();

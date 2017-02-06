@@ -605,55 +605,67 @@ namespace mongo {
         table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10, false));
         table_options.block_size = 16 * 1024; // 16KB
         table_options.format_version = 2;
-        //options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
+        if (rocksGlobalOptions.terarkEnable) {
+            rocksdb::TerarkZipTableOptions terark_zip_table_options;
+            terark_zip_table_options.indexNestLevel = rocksGlobalOptions.indexNestLevel;
+            terark_zip_table_options.checksumLevel = rocksGlobalOptions.checksumLevel;
+            if (rocksGlobalOptions.entropyAlgo == "none") {
+                terark_zip_table_options.entropyAlgo = rocksdb::TerarkZipTableOptions::kNoEntropy;
+            }
+            else if (rocksGlobalOptions.entropyAlgo == "huffman") {
+                terark_zip_table_options.entropyAlgo = rocksdb::TerarkZipTableOptions::kHuffman;
+            }
+            else if (rocksGlobalOptions.entropyAlgo == "FSE") {
+                terark_zip_table_options.entropyAlgo = rocksdb::TerarkZipTableOptions::kFSE;
+            }
+            else {
+                log() << "Unknown entropyAlgo, will use default (none)";
+                terark_zip_table_options.entropyAlgo = rocksdb::TerarkZipTableOptions::kNoEntropy;
+            }
+            terark_zip_table_options.terarkZipMinLevel = rocksGlobalOptions.terarkZipMinLevel;
+            terark_zip_table_options.useSuffixArrayLocalMatch = rocksGlobalOptions.useSuffixArrayLocalMatch;
+            terark_zip_table_options.warmUpIndexOnOpen = rocksGlobalOptions.warmUpIndexOnOpen;
+            terark_zip_table_options.warmUpValueOnOpen = rocksGlobalOptions.warmUpValueOnOpen;
+            terark_zip_table_options.estimateCompressionRatio = float(rocksGlobalOptions.estimateCompressionRatio);
+            terark_zip_table_options.sampleRatio = rocksGlobalOptions.sampleRatio;
+            terark_zip_table_options.localTempDir = rocksGlobalOptions.localTempDir;
+            terark_zip_table_options.indexType = rocksGlobalOptions.indexType;
+            terark_zip_table_options.softZipWorkingMemLimit = uint64_t(rocksGlobalOptions.softZipWorkingMemLimit);
+            terark_zip_table_options.hardZipWorkingMemLimit = uint64_t(rocksGlobalOptions.hardZipWorkingMemLimit);
+            terark_zip_table_options.smallTaskMemory = uint64_t(rocksGlobalOptions.smallTaskMemory);
+            terark_zip_table_options.indexCacheRatio = rocksGlobalOptions.indexCacheRatio;
+            options.table_factory.reset(rocksdb::NewTerarkZipTableFactory(terark_zip_table_options,
+                                                                          rocksdb::NewBlockBasedTableFactory(table_options)));
 
-        rocksdb::TerarkZipTableOptions terark_zip_table_options;
-        terark_zip_table_options.indexNestLevel = rocksGlobalOptions.indexNestLevel;
-        terark_zip_table_options.checksumLevel = rocksGlobalOptions.checksumLevel;
-        if (rocksGlobalOptions.entropyAlgo == "none") {
-            terark_zip_table_options.entropyAlgo = rocksdb::TerarkZipTableOptions::kNoEntropy;
-        }
-        else if (rocksGlobalOptions.entropyAlgo == "huffman") {
-            terark_zip_table_options.entropyAlgo = rocksdb::TerarkZipTableOptions::kHuffman;
-        }
-        else if (rocksGlobalOptions.entropyAlgo == "FSE") {
-            terark_zip_table_options.entropyAlgo = rocksdb::TerarkZipTableOptions::kFSE;
+            options.allow_mmap_reads = true;
+            options.compaction_style = rocksdb::kCompactionStyleUniversal;
+            options.target_file_size_multiplier = rocksGlobalOptions.targetFileSizeMultiplier;
+            options.num_levels = rocksGlobalOptions.numLevels;
+            options.write_buffer_size = rocksGlobalOptions.targetFileSizeBase;
+            options.level0_slowdown_writes_trigger = 8;
+            options.max_write_buffer_number = 4;
+            options.max_background_compactions = 4;
+            options.max_background_flushes = 2;
+            options.target_file_size_base = rocksGlobalOptions.targetFileSizeBase;
+            options.soft_rate_limit = 2.5;
+            options.hard_rate_limit = 3;
+            options.level_compaction_dynamic_level_bytes = true;
+            options.max_bytes_for_level_base = 512 * 1024 * 1024;  // 512 MB
         }
         else {
-            log() << "Unknown entropyAlgo, will use default (none)";
-            terark_zip_table_options.entropyAlgo = rocksdb::TerarkZipTableOptions::kNoEntropy;
+            options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
+
+            options.write_buffer_size = 64 * 1024 * 1024;  // 64MB
+            options.level0_slowdown_writes_trigger = 8;
+            options.max_write_buffer_number = 4;
+            options.max_background_compactions = 8;
+            options.max_background_flushes = 2;
+            options.target_file_size_base = 64 * 1024 * 1024; // 64MB
+            options.soft_rate_limit = 2.5;
+            options.hard_rate_limit = 3;
+            options.level_compaction_dynamic_level_bytes = true;
+            options.max_bytes_for_level_base = 512 * 1024 * 1024;  // 512 MB
         }
-        terark_zip_table_options.terarkZipMinLevel = rocksGlobalOptions.terarkZipMinLevel;
-        terark_zip_table_options.useSuffixArrayLocalMatch = rocksGlobalOptions.useSuffixArrayLocalMatch;
-        terark_zip_table_options.warmUpIndexOnOpen = rocksGlobalOptions.warmUpIndexOnOpen;
-        terark_zip_table_options.warmUpValueOnOpen = rocksGlobalOptions.warmUpValueOnOpen;
-        terark_zip_table_options.estimateCompressionRatio = float(rocksGlobalOptions.estimateCompressionRatio);
-        terark_zip_table_options.sampleRatio = rocksGlobalOptions.sampleRatio;
-        terark_zip_table_options.localTempDir = rocksGlobalOptions.localTempDir;
-        terark_zip_table_options.indexType = rocksGlobalOptions.indexType;
-        terark_zip_table_options.softZipWorkingMemLimit = uint64_t(rocksGlobalOptions.softZipWorkingMemLimit);
-        terark_zip_table_options.hardZipWorkingMemLimit = uint64_t(rocksGlobalOptions.hardZipWorkingMemLimit);
-        terark_zip_table_options.smallTaskMemory = uint64_t(rocksGlobalOptions.smallTaskMemory);
-        terark_zip_table_options.indexCacheRatio = rocksGlobalOptions.indexCacheRatio;
-        options.table_factory.reset(rocksdb::NewTerarkZipTableFactory(terark_zip_table_options,
-                                                                      rocksdb::NewBlockBasedTableFactory(table_options)));
-
-        options.allow_mmap_reads = true;
-        options.compaction_style = rocksdb::kCompactionStyleUniversal;
-
-        options.target_file_size_multiplier = rocksGlobalOptions.targetFileSizeMultiplier;
-        options.num_levels = rocksGlobalOptions.numLevels;
-        options.write_buffer_size = rocksGlobalOptions.targetFileSizeBase;
-        options.target_file_size_base = rocksGlobalOptions.targetFileSizeBase;
-
-        options.level0_slowdown_writes_trigger = 8;
-        options.max_write_buffer_number = 4;
-        options.max_background_compactions = 4;
-        options.max_background_flushes = 2;
-        options.soft_rate_limit = 2.5;
-        options.hard_rate_limit = 3;
-        options.level_compaction_dynamic_level_bytes = true;
-        options.max_bytes_for_level_base = 512 * 1024 * 1024;  // 512 MB
         // This means there is no limit on open files. Make sure to always set ulimit so that it can
         // keep all RocksDB files opened.
         options.max_open_files = -1;

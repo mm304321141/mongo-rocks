@@ -47,7 +47,8 @@ namespace mongo {
               targetFileSizeMultiplier(5),
               numLevels(7),
               targetFileSizeBase(512ull << 20),
-                //terark begin
+              //terark begin
+              terarkEnable(true),
               indexNestLevel(3),
               checksumLevel(1),
               entropyAlgo("none"),
@@ -85,6 +86,7 @@ namespace mongo {
         unsigned long long targetFileSizeBase;
 
         //terark begin
+        bool terarkEnable;
         int indexNestLevel;
         int checksumLevel;
         std::string entropyAlgo;
