@@ -87,6 +87,12 @@ namespace mongo {
                                "This is still experimental. "
                                "Use this only if you know what you're doing")
             .setDefault(moe::Value(false));
+	rocksOptions
+            .addOptionChaining("storage.rocksdb.useSeparateOplogCF",
+                               "rocksdbSeparateOplogCF", moe::Bool,
+                               "Use separate column-family to store oplogs. "
+                               "An optimization.")
+            .setDefault(moe::Value(false));
 
         // rocks add
 
@@ -276,7 +282,7 @@ namespace mongo {
         if (params.count("storage.rocksdb.compression")) {
             rocksGlobalOptions.compression =
                 params["storage.rocksdb.compression"].as<std::string>();
-            log() << "Compression: " << rocksGlobalOptions.compression;
+            log() << "Compression: " << redact(rocksGlobalOptions.compression);
         }
         if (params.count("storage.rocksdb.maxWriteMBPerSec")) {
             rocksGlobalOptions.maxWriteMBPerSec =
@@ -286,7 +292,7 @@ namespace mongo {
         if (params.count("storage.rocksdb.configString")) {
             rocksGlobalOptions.configString =
                 params["storage.rocksdb.configString"].as<std::string>();
-            log() << "Engine custom option: " << rocksGlobalOptions.configString;
+            log() << "Engine custom option: " << redact(rocksGlobalOptions.configString);
         }
         if (params.count("storage.rocksdb.crashSafeCounters")) {
             rocksGlobalOptions.crashSafeCounters =
@@ -302,6 +308,11 @@ namespace mongo {
             rocksGlobalOptions.singleDeleteIndex =
               params["storage.rocksdb.singleDeleteIndex"].as<bool>();
             log() << "Use SingleDelete in index: " << rocksGlobalOptions.singleDeleteIndex;
+        }
+        if (params.count("storage.rocksdb.useSeparateOplogCF")) {
+            rocksGlobalOptions.useSeparateOplogCF =
+              params["storage.rocksdb.useSeparateOplogCF"].as<bool>();
+            log() << "UseSeparateOplogCF: " << rocksGlobalOptions.useSeparateOplogCF;
         }
         //rocks add
         if (params.count("storage.rocksdb.terark.targetFileSizeMultiplier")) {

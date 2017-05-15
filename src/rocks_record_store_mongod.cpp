@@ -81,8 +81,6 @@ namespace mongo {
                 const auto txn = cc().makeOperationContext();
 
                 try {
-                    ScopedTransaction transaction(txn.get(), MODE_IX);
-
                     AutoGetDb autoDb(txn.get(), _ns.db(), MODE_IX);
                     Database* db = autoDb.getDb();
                     if (!db) {
@@ -107,7 +105,7 @@ namespace mongo {
                     return removed;
                 }
                 catch (const std::exception& e) {
-                    severe() << "error in RocksRecordStoreThread: " << e.what();
+                    severe() << "error in RocksRecordStoreThread: " << redact(e.what());
                     fassertFailedNoTrace(!"error in RocksRecordStoreThread");
                 }
                 catch (...) {

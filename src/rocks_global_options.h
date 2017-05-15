@@ -43,6 +43,7 @@ namespace mongo {
               compression("snappy"),
               crashSafeCounters(false),
               singleDeleteIndex(false),
+              useSeparateOplogCF(false),
               //rocks add
               targetFileSizeMultiplier(5),
               numLevels(7),
@@ -79,7 +80,7 @@ namespace mongo {
         bool crashSafeCounters;
         bool counters;
         bool singleDeleteIndex;
-
+        bool useSeparateOplogCF;
 
         int targetFileSizeMultiplier;
         int numLevels;

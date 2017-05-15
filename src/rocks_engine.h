@@ -74,8 +74,14 @@ namespace mongo {
     class RocksEngine final : public KVEngine {
         MONGO_DISALLOW_COPYING( RocksEngine );
     public:
+	//static const int kDefaultCFIndex = 0;
+	//static const int kOplogCFIndex = 1;
+	
+    public:
         RocksEngine(const std::string& path, bool durable, int formatVersion, bool readOnly);
         virtual ~RocksEngine();
+
+        static void appendGlobalStats(BSONObjBuilder& b);
 
         virtual RecoveryUnit* newRecoveryUnit() override;
 
@@ -109,7 +115,7 @@ namespace mongo {
             return false;
         }
 
-        virtual int flushAllFiles(bool sync) override;
+        virtual int flushAllFiles(OperationContext* txn, bool sync) override;
 
         virtual Status beginBackup(OperationContext* txn) override;
 
@@ -162,6 +168,12 @@ namespace mongo {
         }
 
     private:
+	rocksdb::Status openDB(const std::vector<rocksdb::ColumnFamilyDescriptor>& descriptors,
+		      bool readOnly, rocksdb::DB** db);
+	Status createOplogStore(OperationContext* opCtx,
+				StringData ident,
+				const CollectionOptions& options);
+
         Status _createIdent(StringData ident, BSONObjBuilder* configBuilder);
         BSONObj _getIdentConfig(StringData ident);
         std::string _extractPrefix(const BSONObj& config);
@@ -212,6 +224,12 @@ namespace mongo {
 
         static const std::string kMetadataPrefix;
         static const std::string kDroppedPrefix;
+	static const std::string kOplogCF;
+	
+	std::vector<rocksdb::ColumnFamilyHandle*> _cfHandles;
+	bool _useSeparateOplogCF = false;
+	int _defaultCFIndex = 0;
+	int _oplogCFIndex = 0;
 
         std::unique_ptr<RocksDurabilityManager> _durabilityManager;
         class RocksJournalFlusher;

@@ -30,6 +30,7 @@
 #define MONGO_LOG_DEFAULT_COMPONENT ::mongo::logger::LogComponent::kStorage
 
 #include "mongo/platform/basic.h"
+#include "mongo/util/quick_exit.h"
 
 #include "rocks_engine.h"
 
@@ -38,6 +39,7 @@
 
 #include <boost/filesystem/operations.hpp>
 
+#include <rocksdb/version.h>
 #include <rocksdb/cache.h>
 #include <rocksdb/compaction_filter.h>
 #include <rocksdb/comparator.h>
@@ -54,6 +56,7 @@
 
 #include "mongo/db/client.h"
 #include "mongo/db/catalog/collection_options.h"
+#include "mongo/db/concurrency/locker.h"
 #include "mongo/db/index/index_descriptor.h"
 #include "mongo/db/namespace_string.h"
 #include "mongo/db/operation_context.h"
@@ -158,6 +161,11 @@ namespace mongo {
                 return _droppedCache;
             }
 
+            // IgnoreSnapshots is available since RocksDB 4.3
+#if defined(ROCKSDB_MAJOR) && (ROCKSDB_MAJOR > 4 || (ROCKSDB_MAJOR == 4 && ROCKSDB_MINOR >= 3))
+            virtual bool IgnoreSnapshots() const { return true; }
+#endif
+
             virtual const char* Name() const { return "PrefixDeletingCompactionFilter"; }
 
         private:
@@ -190,16 +198,64 @@ namespace mongo {
         private:
             const RocksEngine* _engine;
         };
+        
+        // ServerParameter to limit concurrency, to prevent thousands of threads running
+        // concurrent searches and thus blocking the entire DB.
+        class RocksTicketServerParameter : public ServerParameter {
+            MONGO_DISALLOW_COPYING(RocksTicketServerParameter);
+
+        public:
+            RocksTicketServerParameter(TicketHolder* holder, const std::string& name)
+                : ServerParameter(ServerParameterSet::getGlobal(), name, true, true), _holder(holder) {};
+            virtual void append(OperationContext* txn, BSONObjBuilder& b, const std::string& name) {
+                b.append(name, _holder->outof());
+            }
+            virtual Status set(const BSONElement& newValueElement) {
+                if (!newValueElement.isNumber())
+                    return Status(ErrorCodes::BadValue, str::stream() << name() << " has to be a number");
+                return _set(newValueElement.numberInt());
+            }
+            virtual Status setFromString(const std::string& str) {
+                int num = 0;
+                Status status = parseNumberFromString(str, &num);
+                if (!status.isOK())
+                    return status;
+                return _set(num);
+            }
+
+        private:
+            Status _set(int newNum) {
+                if (newNum <= 0) {
+                    return Status(ErrorCodes::BadValue, str::stream() << name() << " has to be > 0");
+                }
+
+                return _holder->resize(newNum);
+            }
+            
+            TicketHolder* _holder;
+        };
+
+        TicketHolder openWriteTransaction(128);
+        RocksTicketServerParameter openWriteTransactionParam(&openWriteTransaction,
+                                                        "rocksdbConcurrentWriteTransactions");
+
+        TicketHolder openReadTransaction(128);
+        RocksTicketServerParameter openReadTransactionParam(&openReadTransaction,
+                                                       "rocksdbConcurrentReadTransactions");
 
     }  // anonymous namespace
 
     // first four bytes are the default prefix 0
     const std::string RocksEngine::kMetadataPrefix("\0\0\0\0metadata-", 12);
     const std::string RocksEngine::kDroppedPrefix("\0\0\0\0droppedprefix-", 18);
+    const std::string RocksEngine::kOplogCF("oplogCF");
 
     RocksEngine::RocksEngine(const std::string& path, bool durable, int formatVersion,
                              bool readOnly)
-        : _path(path), _durable(durable), _formatVersion(formatVersion), _maxPrefix(0) {
+        : _path(path)
+	, _durable(durable)
+	, _formatVersion(formatVersion)
+	, _maxPrefix(0) {
         {  // create block cache
             uint64_t cacheSizeGB = rocksGlobalOptions.cacheSizeGB;
             if (cacheSizeGB == 0) {
@@ -222,15 +278,20 @@ namespace mongo {
         if (rocksGlobalOptions.counters) {
             _statistics = rocksdb::CreateDBStatistics();
         }
-
-        // open DB
-        rocksdb::DB* db;
-        rocksdb::Status s;
-        if (readOnly) {
-            s = rocksdb::DB::OpenForReadOnly(_options(), path, &db);
-        } else {
-            s = rocksdb::DB::Open(_options(), path, &db);
-        }
+	_useSeparateOplogCF = rocksGlobalOptions.useSeparateOplogCF;
+	_oplogCFIndex = _useSeparateOplogCF ? 1 : 0;
+	log() << "useSeparateOplogCF: " << _useSeparateOplogCF << ", oplogCFIndex: " << _oplogCFIndex;
+	
+        // open DB, make sure oplog-column-family will be created if
+	// _useSeparateOplogCF == true
+	std::vector<rocksdb::ColumnFamilyDescriptor> cfDescriptors = {
+	    rocksdb::ColumnFamilyDescriptor(rocksdb::kDefaultColumnFamilyName, rocksdb::ColumnFamilyOptions())
+	};
+	if (_useSeparateOplogCF) {
+	    cfDescriptors.emplace_back(kOplogCF, rocksdb::ColumnFamilyOptions());
+	}
+	rocksdb::DB* db;
+	rocksdb::Status s = openDB(cfDescriptors, readOnly, &db);
         invariantRocksOK(s);
         _db.reset(db);
 
@@ -320,9 +381,76 @@ namespace mongo {
             _journalFlusher = stdx::make_unique<RocksJournalFlusher>(_durabilityManager.get());
             _journalFlusher->go();
         }
+
+        Locker::setGlobalThrottling(&openReadTransaction, &openWriteTransaction);
     }
 
     RocksEngine::~RocksEngine() { cleanShutdown(); }
+
+    // DB::Open() failed if:
+    //  case 1. prev UseSepOplog == true, current UseSepOplog == false;
+    //  case 2. prev UseSepOplog == false, current UseSepOplog == true;
+    //  case 3. first time DB::Opened, with UseSepOplog == true
+    rocksdb::Status RocksEngine::openDB(const std::vector<rocksdb::ColumnFamilyDescriptor>& cfDescriptors,
+			       bool readOnly, rocksdb::DB** outdb) {
+	std::string ReopenTagKey("\0\0\0\0ReopenTag", 13);
+	rocksdb::DB* db = nullptr;
+	rocksdb::Status s;
+	if (readOnly) {
+	    s = rocksdb::DB::OpenForReadOnly(_options(), _path, cfDescriptors, &_cfHandles, &db);
+	} else {
+	    s = rocksdb::DB::Open(_options(), _path, cfDescriptors, &_cfHandles, &db);
+	}
+	if (!s.ok()) {
+	    if (_useSeparateOplogCF) {
+		// Note: we could only get CFHandle* by the time db::open()ed
+		// if there is no oplogCF, create it first, then reopen db, assigns CFHandle*
+		s = (readOnly)
+		    ? rocksdb::DB::OpenForReadOnly(_options(), _path, &db)
+		    : rocksdb::DB::Open(_options(), _path, &db);
+		assert(s.ok());
+		std::string val;
+		s = db->Get(rocksdb::ReadOptions(), ReopenTagKey, &val);
+		if (s.ok()) { // case 2
+		    error() << "Inconsistent Oplog Option, UseSeparateOplogCF should be false";
+		    mongo::quickExit(1);
+		}
+		// case 3, need to manually create oplogCF
+		rocksdb::ColumnFamilyHandle* cf = nullptr;
+		s = db->CreateColumnFamily(rocksdb::ColumnFamilyOptions(), kOplogCF, &cf);
+		assert(s.ok());
+		delete cf;
+		delete db;
+		// recur call myself, should succ this time
+		return openDB(cfDescriptors, readOnly, outdb);
+	    } else { // case 1
+		error() << "Inconsistent Oplog Option, UseSeparateOplogCF should be true";
+		mongo::quickExit(1);
+	    }
+	}
+	db->Put(rocksdb::WriteOptions(), ReopenTagKey, "");
+	*outdb = db;
+	return s;
+    }
+    
+    void RocksEngine::appendGlobalStats(BSONObjBuilder& b) {
+        BSONObjBuilder bb(b.subobjStart("concurrentTransactions"));
+        {
+            BSONObjBuilder bbb(bb.subobjStart("write"));
+            bbb.append("out", openWriteTransaction.used());
+            bbb.append("available", openWriteTransaction.available());
+            bbb.append("totalTickets", openWriteTransaction.outof());
+            bbb.done();
+        }
+        {
+            BSONObjBuilder bbb(bb.subobjStart("read"));
+            bbb.append("out", openReadTransaction.used());
+            bbb.append("available", openReadTransaction.available());
+            bbb.append("totalTickets", openReadTransaction.outof());
+            bbb.done();
+        }
+        bb.done();
+    }
 
     RecoveryUnit* RocksEngine::newRecoveryUnit() {
         return new RocksRecoveryUnit(&_transactionEngine, &_snapshotManager, _db.get(),
@@ -332,10 +460,46 @@ namespace mongo {
 
     Status RocksEngine::createRecordStore(OperationContext* opCtx, StringData ns, StringData ident,
                                           const CollectionOptions& options) {
-        BSONObjBuilder configBuilder;
-        auto s = _createIdent(ident, &configBuilder);
-        if (s.isOK() && NamespaceString::oplog(ns)) {
-            _oplogIdent = ident.toString();
+	if (NamespaceString::oplog(ns)) {
+	    return createOplogStore(opCtx, ident, options);
+	} else {
+	    BSONObjBuilder configBuilder;
+	    return _createIdent(ident, &configBuilder);
+	}
+    }
+
+    Status RocksEngine::createOplogStore(OperationContext* opCtx,
+					 StringData ident,
+					 const CollectionOptions& options) {
+	BSONObj config;
+        uint32_t prefix = 0;
+	BSONObjBuilder configBuilder;
+        {
+            stdx::lock_guard<stdx::mutex> lk(_identMapMutex);
+            if (_identMap.find(ident) != _identMap.end()) {
+                // already exists
+                return Status::OK();
+            }
+	    // TBD(kg) should we use a diffrent prefix + prefix-number,
+	    // or should we stick to this maxPrefix one ?
+            prefix = ++_maxPrefix;
+            configBuilder.append("prefix", static_cast<int32_t>(prefix));
+
+            config = configBuilder.obj();
+            _identMap[ident] = config.copy();
+        }
+	// still, we need to register oplog-table into meta-info
+        auto s = _db->Put(rocksdb::WriteOptions(), kMetadataPrefix + ident.toString(),
+                          rocksdb::Slice(config.objdata(), config.objsize()));
+        if (s.ok()) {
+            // As an optimization, add a key <prefix> to the DB
+            std::string encodedPrefix(encodePrefix(prefix));
+            s = _db->Put(rocksdb::WriteOptions(), encodedPrefix, rocksdb::Slice());
+        }
+	_oplogIdent = ident.toString();
+	
+        // oplog tracker
+	{
             // oplog needs two prefixes, so we also reserve the next one
             uint64_t oplogTrackerPrefix = 0;
             {
@@ -345,17 +509,17 @@ namespace mongo {
             // we also need to write out the new prefix to the database. this is just an
             // optimization
             std::string encodedPrefix(encodePrefix(oplogTrackerPrefix));
-            s = rocksToMongoStatus(
-                _db->Put(rocksdb::WriteOptions(), encodedPrefix, rocksdb::Slice()));
-        }
-        return s;
+            s = _db->Put(rocksdb::WriteOptions(), encodedPrefix, rocksdb::Slice());
+	}
+        return rocksToMongoStatus(s);
     }
+
 
     std::unique_ptr<RecordStore> RocksEngine::getRecordStore(OperationContext* opCtx, StringData ns,
                                              StringData ident, const CollectionOptions& options) {
-        if (NamespaceString::oplog(ns)) {
-            _oplogIdent = ident.toString();
-        }
+        //if (NamespaceString::oplog(ns)) {
+        //    _oplogIdent = ident.toString();
+        //}
 
         auto config = _getIdentConfig(ident);
         std::string prefix = _extractPrefix(config);
@@ -373,6 +537,14 @@ namespace mongo {
             stdx::lock_guard<stdx::mutex> lk(_identObjectMapMutex);
             _identCollectionMap[ident] = recordStore.get();
         }
+
+	auto store = dynamic_cast<RocksRecordStore*>(recordStore.get());
+	if (NamespaceString::oplog(ns)) {
+            _oplogIdent = ident.toString();
+	    store->setCFHandle(_cfHandles[_oplogCFIndex]);
+        } else {
+	    store->setCFHandle(_cfHandles[_defaultCFIndex]);
+	}
         return std::move(recordStore);
     }
 
@@ -518,7 +690,7 @@ namespace mongo {
         return 1;
     }
 
-    int RocksEngine::flushAllFiles(bool sync) {
+    int RocksEngine::flushAllFiles(OperationContext* txn, bool sync) {
         LOG(1) << "RocksEngine::flushAllFiles";
         _counterManager->sync();
         _durabilityManager->waitUntilDurable(true);
@@ -595,7 +767,7 @@ namespace mongo {
     std::string RocksEngine::_extractPrefix(const BSONObj& config) {
         return encodePrefix(config.getField("prefix").numberInt());
     }
-
+    
     rocksdb::Options RocksEngine::_options() const {
         // default options
         rocksdb::Options options;
@@ -706,7 +878,7 @@ namespace mongo {
             auto s = rocksdb::GetOptionsFromString(base_options, rocksGlobalOptions.configString,
                                                    &options);
             if (!s.ok()) {
-                log() << "Invalid rocksdbConfigString \"" << rocksGlobalOptions.configString
+                log() << "Invalid rocksdbConfigString \"" << redact(rocksGlobalOptions.configString)
                       << "\"";
                 invariantRocksOK(s);
             }
