@@ -253,9 +253,9 @@ namespace mongo {
     RocksEngine::RocksEngine(const std::string& path, bool durable, int formatVersion,
                              bool readOnly)
         : _path(path)
-	, _durable(durable)
-	, _formatVersion(formatVersion)
-	, _maxPrefix(0) {
+        , _durable(durable)
+        , _formatVersion(formatVersion)
+        , _maxPrefix(0) {
         {  // create block cache
             uint64_t cacheSizeGB = rocksGlobalOptions.cacheSizeGB;
             if (cacheSizeGB == 0) {
@@ -278,20 +278,22 @@ namespace mongo {
         if (rocksGlobalOptions.counters) {
             _statistics = rocksdb::CreateDBStatistics();
         }
-	_useSeparateOplogCF = rocksGlobalOptions.useSeparateOplogCF;
-	_oplogCFIndex = _useSeparateOplogCF ? 1 : 0;
-	log() << "useSeparateOplogCF: " << _useSeparateOplogCF << ", oplogCFIndex: " << _oplogCFIndex;
+        _useSeparateOplogCF = rocksGlobalOptions.useSeparateOplogCF;
+        _oplogCFIndex = _useSeparateOplogCF ? 1 : 0;
+        log() << "useSeparateOplogCF: " << _useSeparateOplogCF << ", oplogCFIndex: " << _oplogCFIndex;
 	
         // open DB, make sure oplog-column-family will be created if
-	// _useSeparateOplogCF == true
-	std::vector<rocksdb::ColumnFamilyDescriptor> cfDescriptors = {
-	    rocksdb::ColumnFamilyDescriptor(rocksdb::kDefaultColumnFamilyName, rocksdb::ColumnFamilyOptions())
-	};
-	if (_useSeparateOplogCF) {
-	    cfDescriptors.emplace_back(kOplogCF, rocksdb::ColumnFamilyOptions());
-	}
-	rocksdb::DB* db;
-	rocksdb::Status s = openDB(cfDescriptors, readOnly, &db);
+	      // _useSeparateOplogCF == true
+
+        rocksdb::Options options = _options();
+        std::vector<rocksdb::ColumnFamilyDescriptor> cfDescriptors = {
+            rocksdb::ColumnFamilyDescriptor(rocksdb::kDefaultColumnFamilyName, options)
+        };
+        if (_useSeparateOplogCF) {
+            cfDescriptors.emplace_back(kOplogCF, rocksdb::ColumnFamilyOptions());
+        }
+        rocksdb::DB* db;
+        rocksdb::Status s = openDB(options, cfDescriptors, readOnly, &db);
         invariantRocksOK(s);
         _db.reset(db);
 
@@ -391,46 +393,49 @@ namespace mongo {
     //  case 1. prev UseSepOplog == true, current UseSepOplog == false;
     //  case 2. prev UseSepOplog == false, current UseSepOplog == true;
     //  case 3. first time DB::Opened, with UseSepOplog == true
-    rocksdb::Status RocksEngine::openDB(const std::vector<rocksdb::ColumnFamilyDescriptor>& cfDescriptors,
-			       bool readOnly, rocksdb::DB** outdb) {
-	std::string ReopenTagKey("\0\0\0\0ReopenTag", 13);
-	rocksdb::DB* db = nullptr;
-	rocksdb::Status s;
-	if (readOnly) {
-	    s = rocksdb::DB::OpenForReadOnly(_options(), _path, cfDescriptors, &_cfHandles, &db);
-	} else {
-	    s = rocksdb::DB::Open(_options(), _path, cfDescriptors, &_cfHandles, &db);
-	}
-	if (!s.ok()) {
-	    if (_useSeparateOplogCF) {
-		// Note: we could only get CFHandle* by the time db::open()ed
-		// if there is no oplogCF, create it first, then reopen db, assigns CFHandle*
-		s = (readOnly)
-		    ? rocksdb::DB::OpenForReadOnly(_options(), _path, &db)
-		    : rocksdb::DB::Open(_options(), _path, &db);
-		assert(s.ok());
-		std::string val;
-		s = db->Get(rocksdb::ReadOptions(), ReopenTagKey, &val);
-		if (s.ok()) { // case 2
-		    error() << "Inconsistent Oplog Option, UseSeparateOplogCF should be false";
-		    mongo::quickExit(1);
-		}
-		// case 3, need to manually create oplogCF
-		rocksdb::ColumnFamilyHandle* cf = nullptr;
-		s = db->CreateColumnFamily(rocksdb::ColumnFamilyOptions(), kOplogCF, &cf);
-		assert(s.ok());
-		delete cf;
-		delete db;
-		// recur call myself, should succ this time
-		return openDB(cfDescriptors, readOnly, outdb);
-	    } else { // case 1
-		error() << "Inconsistent Oplog Option, UseSeparateOplogCF should be true";
-		mongo::quickExit(1);
-	    }
-	}
-	db->Put(rocksdb::WriteOptions(), ReopenTagKey, "");
-	*outdb = db;
-	return s;
+    rocksdb::Status RocksEngine::openDB(const rocksdb::Options& options,
+                                        const std::vector<rocksdb::ColumnFamilyDescriptor>& descriptors,
+                                        bool readOnly, rocksdb::DB** outdb) {
+        std::string ReopenTagKey("\0\0\0\0ReopenTag", 13);
+        rocksdb::DB* db = nullptr;
+        rocksdb::Status s;
+        if (readOnly) {
+            s = rocksdb::DB::OpenForReadOnly(options, _path, cfDescriptors, &_cfHandles, &db);
+        }
+        else {
+            s = rocksdb::DB::Open(options, _path, cfDescriptors, &_cfHandles, &db);
+        }
+        if (!s.ok()) {
+            if (_useSeparateOplogCF) {
+                // Note: we could only get CFHandle* by the time db::open()ed
+                // if there is no oplogCF, create it first, then reopen db, assigns CFHandle*
+                s = (readOnly)
+                    ? rocksdb::DB::OpenForReadOnly(options, _path, &db)
+                    : rocksdb::DB::Open(options, _path, &db);
+                assert(s.ok());
+                std::string val;
+                s = db->Get(rocksdb::ReadOptions(), ReopenTagKey, &val);
+                if (s.ok()) { // case 2
+                    error() << "Inconsistent Oplog Option, UseSeparateOplogCF should be false";
+                    mongo::quickExit(1);
+                }
+                // case 3, need to manually create oplogCF
+                rocksdb::ColumnFamilyHandle* cf = nullptr;
+                s = db->CreateColumnFamily(rocksdb::ColumnFamilyOptions(), kOplogCF, &cf);
+                assert(s.ok());
+                delete cf;
+                delete db;
+                // recur call myself, should succ this time
+                return openDB(options, cfDescriptors, readOnly, outdb);
+            }
+            else { // case 1
+                error() << "Inconsistent Oplog Option, UseSeparateOplogCF should be true";
+                mongo::quickExit(1);
+            }
+        }
+        db->Put(rocksdb::WriteOptions(), ReopenTagKey, "");
+        *outdb = db;
+        return s;
     }
     
     void RocksEngine::appendGlobalStats(BSONObjBuilder& b) {
@@ -460,35 +465,35 @@ namespace mongo {
 
     Status RocksEngine::createRecordStore(OperationContext* opCtx, StringData ns, StringData ident,
                                           const CollectionOptions& options) {
-	if (NamespaceString::oplog(ns)) {
-	    return createOplogStore(opCtx, ident, options);
-	} else {
-	    BSONObjBuilder configBuilder;
-	    return _createIdent(ident, &configBuilder);
-	}
+        if (NamespaceString::oplog(ns)) {
+            return createOplogStore(opCtx, ident, options);
+        } else {
+            BSONObjBuilder configBuilder;
+            return _createIdent(ident, &configBuilder);
+        }
     }
 
     Status RocksEngine::createOplogStore(OperationContext* opCtx,
-					 StringData ident,
-					 const CollectionOptions& options) {
-	BSONObj config;
+                                         StringData ident,
+                                         const CollectionOptions& options) {
+        BSONObj config;
         uint32_t prefix = 0;
-	BSONObjBuilder configBuilder;
+        BSONObjBuilder configBuilder;
         {
             stdx::lock_guard<stdx::mutex> lk(_identMapMutex);
             if (_identMap.find(ident) != _identMap.end()) {
                 // already exists
                 return Status::OK();
             }
-	    // TBD(kg) should we use a diffrent prefix + prefix-number,
-	    // or should we stick to this maxPrefix one ?
+            // TBD(kg) should we use a diffrent prefix + prefix-number,
+            // or should we stick to this maxPrefix one ?
             prefix = ++_maxPrefix;
             configBuilder.append("prefix", static_cast<int32_t>(prefix));
 
             config = configBuilder.obj();
             _identMap[ident] = config.copy();
         }
-	// still, we need to register oplog-table into meta-info
+        // still, we need to register oplog-table into meta-info
         auto s = _db->Put(rocksdb::WriteOptions(), kMetadataPrefix + ident.toString(),
                           rocksdb::Slice(config.objdata(), config.objsize()));
         if (s.ok()) {
@@ -496,10 +501,10 @@ namespace mongo {
             std::string encodedPrefix(encodePrefix(prefix));
             s = _db->Put(rocksdb::WriteOptions(), encodedPrefix, rocksdb::Slice());
         }
-	_oplogIdent = ident.toString();
-	
+        _oplogIdent = ident.toString();
+
         // oplog tracker
-	{
+        {
             // oplog needs two prefixes, so we also reserve the next one
             uint64_t oplogTrackerPrefix = 0;
             {
@@ -510,7 +515,7 @@ namespace mongo {
             // optimization
             std::string encodedPrefix(encodePrefix(oplogTrackerPrefix));
             s = _db->Put(rocksdb::WriteOptions(), encodedPrefix, rocksdb::Slice());
-	}
+        }
         return rocksToMongoStatus(s);
     }
 
@@ -538,13 +543,13 @@ namespace mongo {
             _identCollectionMap[ident] = recordStore.get();
         }
 
-	auto store = dynamic_cast<RocksRecordStore*>(recordStore.get());
-	if (NamespaceString::oplog(ns)) {
-            _oplogIdent = ident.toString();
-	    store->setCFHandle(_cfHandles[_oplogCFIndex]);
-        } else {
-	    store->setCFHandle(_cfHandles[_defaultCFIndex]);
-	}
+        auto store = dynamic_cast<RocksRecordStore*>(recordStore.get());
+        if (NamespaceString::oplog(ns)) {
+                _oplogIdent = ident.toString();
+            store->setCFHandle(_cfHandles[_oplogCFIndex]);
+            } else {
+            store->setCFHandle(_cfHandles[_defaultCFIndex]);
+        }
         return std::move(recordStore);
     }
 
