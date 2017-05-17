@@ -811,18 +811,19 @@ namespace mongo {
 
             options.allow_mmap_reads = true;
             options.compaction_style = rocksdb::kCompactionStyleUniversal;
-            options.target_file_size_multiplier = rocksGlobalOptions.targetFileSizeMultiplier;
             options.num_levels = rocksGlobalOptions.numLevels;
-            options.write_buffer_size = rocksGlobalOptions.targetFileSizeBase;
             options.level0_slowdown_writes_trigger = 8;
             options.max_write_buffer_number = 4;
             options.max_background_compactions = 4;
             options.max_background_flushes = 2;
-            options.target_file_size_base = rocksGlobalOptions.targetFileSizeBase;
             options.soft_rate_limit = 2.5;
             options.hard_rate_limit = 3;
             options.level_compaction_dynamic_level_bytes = true;
-            options.max_bytes_for_level_base = 512 * 1024 * 1024;  // 512 MB
+            options.write_buffer_size = rocksGlobalOptions.targetFileSizeBase;
+            options.target_file_size_base = rocksGlobalOptions.targetFileSizeBase;
+            options.target_file_size_multiplier = rocksGlobalOptions.targetFileSizeMultiplier;
+            options.max_bytes_for_level_base = options.write_buffer_size * 4;
+            options.max_bytes_for_level_multiplier = rocksGlobalOptions.targetFileSizeMultiplier;
         }
         else {
             options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
