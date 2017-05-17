@@ -394,7 +394,7 @@ namespace mongo {
     //  case 2. prev UseSepOplog == false, current UseSepOplog == true;
     //  case 3. first time DB::Opened, with UseSepOplog == true
     rocksdb::Status RocksEngine::openDB(const rocksdb::Options& options,
-                                        const std::vector<rocksdb::ColumnFamilyDescriptor>& descriptors,
+                                        const std::vector<rocksdb::ColumnFamilyDescriptor>& cfDescriptors,
                                         bool readOnly, rocksdb::DB** outdb) {
         std::string ReopenTagKey("\0\0\0\0ReopenTag", 13);
         rocksdb::DB* db = nullptr;
