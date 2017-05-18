@@ -100,29 +100,27 @@ namespace mongo {
                 .addOptionChaining("storage.rocksdb.targetFileSizeMultiplier",
                                    "rocksdbTargetFileSizeMultiplier",
                                    moe::Int,
-                                   "Rocksdb target file size multiplier.")
-                .validRange(1, 100)
-                .setDefault(moe::Value(5));
+                                   "Rocksdb target file size multiplier. (default 1 for rocksdb, 5 for terarkdb)")
+                .validRange(1, 100);
 
         rocksOptions
                 .addOptionChaining("storage.rocksdb.numLevels",
                                    "rocksdbNumLevels",
                                    moe::Int,
                                    "Rocksdb max level number.")
-                .validRange(1, 20)
+                .validRange(2, 20)
                 .setDefault(moe::Value(7));
 
         rocksOptions
                 .addOptionChaining("storage.rocksdb.targetFileSizeBase",
                                    "rocksdbTargetFileSizeBase",
                                    moe::UnsignedLongLong,
-                                   "Rocksdb target file size base. (default 512M)")
-                .setDefault(moe::Value(512ull << 20));
+                                   "Rocksdb target file size base. (default 64M for rocksdb, 512M for terarkdb)");
 
         // terark begin
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.enabled",
+                .addOptionChaining("storage.rocksdb.terarkdb.enabled",
                                    "terarkEnable",
                                    moe::Bool,
                                    "Terark enable.")
@@ -130,7 +128,7 @@ namespace mongo {
                 .hidden();
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.indexNestLevel",
+                .addOptionChaining("storage.rocksdb.terarkdb.indexNestLevel",
                                    "terarkIndexNestLevel",
                                    moe::Int,
                                    "Index nest level.")
@@ -139,7 +137,7 @@ namespace mongo {
                 .hidden();
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.checksumLevel",
+                .addOptionChaining("storage.rocksdb.terarkdb.checksumLevel",
                                    "terarkChecksumLevel",
                                    moe::Int,
                                    "Case 0, check sum nothing. "
@@ -151,7 +149,7 @@ namespace mongo {
                 .setDefault(moe::Value(1));
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.entropyAlgo",
+                .addOptionChaining("storage.rocksdb.terarkdb.entropyAlgo",
                                    "terarkEntropyAlgo",
                                    moe::String,
                                    "Entropy algo. "
@@ -161,7 +159,7 @@ namespace mongo {
                 .hidden();
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.terarkZipMinLevel",
+                .addOptionChaining("storage.rocksdb.terarkdb.terarkZipMinLevel",
                                    "terarkZipMinLevel",
                                    moe::Int,
                                    "When value < 0, only last level uses terarkZip. "
@@ -177,7 +175,7 @@ namespace mongo {
                 .setDefault(moe::Value(0));
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.useSuffixArrayLocalMatch",
+                .addOptionChaining("storage.rocksdb.terarkdb.useSuffixArrayLocalMatch",
                                    "terarkUseSuffixArrayLocalMatch",
                                    moe::Bool,
                                    "Use suffix array local match.")
@@ -185,7 +183,7 @@ namespace mongo {
                 .hidden();
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.warmUpIndexOnOpen",
+                .addOptionChaining("storage.rocksdb.terarkdb.warmUpIndexOnOpen",
                                    "terarkWarmUpIndexOnOpen",
                                    moe::Bool,
                                    "Warm up index on open.")
@@ -193,7 +191,7 @@ namespace mongo {
                 .hidden();
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.warmUpValueOnOpen",
+                .addOptionChaining("storage.rocksdb.terarkdb.warmUpValueOnOpen",
                                    "terarkWarmUpValueOnOpen",
                                    moe::Bool,
                                    "Warm up value on open.")
@@ -201,7 +199,7 @@ namespace mongo {
                 .hidden();
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.estimateCompressionRatio",
+                .addOptionChaining("storage.rocksdb.terarkdb.estimateCompressionRatio",
                                    "terarkEstimateCompressionRatio",
                                    moe::Double,
                                    "To let rocksdb compaction algo know the estimate SST file size")
@@ -209,7 +207,7 @@ namespace mongo {
                 .hidden();
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.sampleRatio",
+                .addOptionChaining("storage.rocksdb.terarkdb.sampleRatio",
                                    "terarkSampleRatio",
                                    moe::Double,
                                    "The global dictionary size over all value size")
@@ -217,14 +215,14 @@ namespace mongo {
                 .hidden();
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.localTempDir",
+                .addOptionChaining("storage.rocksdb.terarkdb.localTempDir",
                                    "terarkLocalTempDir",
                                    moe::String,
                                    "TerarkZipTable needs to create temp files during compression")
                 .setDefault(moe::Value(std::string("/tmp")));
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.indexType",
+                .addOptionChaining("storage.rocksdb.terarkdb.indexType",
                                    "terarkIndexType",
                                    moe::String,
                                    "Index rank select type. ")
@@ -237,21 +235,21 @@ namespace mongo {
                 .hidden();
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.softZipWorkingMemLimit",
+                .addOptionChaining("storage.rocksdb.terarkdb.softZipWorkingMemLimit",
                                    "terarkSoftMemLimit",
                                    moe::UnsignedLongLong,
                                    "Zip working memory soft limit (default 16G)")
                 .setDefault(moe::Value(16ull << 30));
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.hardZipWorkingMemLimit",
+                .addOptionChaining("storage.rocksdb.terarkdb.hardZipWorkingMemLimit",
                                    "terarkHardMemLimit",
                                    moe::UnsignedLongLong,
                                    "Zip working memory hard limit (default 32G)")
                 .setDefault(moe::Value(32ull << 30));
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.smallTaskMemory",
+                .addOptionChaining("storage.rocksdb.terarkdb.smallTaskMemory",
                                    "terarkSmallTaskMemory",
                                    moe::UnsignedLongLong,
                                    "Small task memory size (default 1.2G)")
@@ -259,7 +257,7 @@ namespace mongo {
                 .hidden();
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.indexCacheRatio",
+                .addOptionChaining("storage.rocksdb.terarkdb.indexCacheRatio",
                                    "terarkIndexCacheRatio",
                                    moe::Double,
                                    "Index cache ratio, should be a small value, typically 0.001. "
@@ -269,7 +267,7 @@ namespace mongo {
                 .hidden();
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.zipThreads",
+                .addOptionChaining("storage.rocksdb.terarkdb.zipThreads",
                                    "terarkZipThreads",
                                    moe::Int,
                                    "Zip threads for value compression, "
@@ -324,107 +322,107 @@ namespace mongo {
             log() << "UseSeparateOplogCF: " << rocksGlobalOptions.useSeparateOplogCF;
         }
         //rocks add
-        if (params.count("storage.rocksdb.terark.targetFileSizeMultiplier")) {
+        if (params.count("storage.rocksdb.terarkdb.targetFileSizeMultiplier")) {
             rocksGlobalOptions.targetFileSizeMultiplier =
-                    params["storage.rocksdb.terark.targetFileSizeMultiplier"].as<int>();
+                    params["storage.rocksdb.terarkdb.targetFileSizeMultiplier"].as<int>();
             log() << "TargetFileSizeMultiplier: " << rocksGlobalOptions.targetFileSizeMultiplier;
         }
-        if (params.count("storage.rocksdb.terark.numLevels")) {
+        if (params.count("storage.rocksdb.terarkdb.numLevels")) {
             rocksGlobalOptions.numLevels =
-                    params["storage.rocksdb.terark.numLevels"].as<int>();
+                    params["storage.rocksdb.terarkdb.numLevels"].as<int>();
             log() << "NumLevels: " << rocksGlobalOptions.numLevels;
         }
-        if (params.count("storage.rocksdb.terark.targetFileSizeBase")) {
+        if (params.count("storage.rocksdb.terarkdb.targetFileSizeBase")) {
             rocksGlobalOptions.targetFileSizeBase =
-                    params["storage.rocksdb.terark.targetFileSizeBase"].as<unsigned long long>();
+                    params["storage.rocksdb.terarkdb.targetFileSizeBase"].as<unsigned long long>();
             log() << "TargetFileSizeBase: " << rocksGlobalOptions.targetFileSizeBase;
         }
         //terark begin
-        if (params.count("storage.rocksdb.terark.terarkEnable")) {
+        if (params.count("storage.rocksdb.terarkdb.terarkEnable")) {
             rocksGlobalOptions.terarkEnable =
-                    params["storage.rocksdb.terark.terarkEnable"].as<bool>();
+                    params["storage.rocksdb.terarkdb.terarkEnable"].as<bool>();
             log() << "Terark terarkEnable: " << rocksGlobalOptions.terarkEnable;
         }
         if (rocksGlobalOptions.terarkEnable) {
 
-        if (params.count("storage.rocksdb.terark.indexNestLevel")) {
+        if (params.count("storage.rocksdb.terarkdb.indexNestLevel")) {
             rocksGlobalOptions.indexNestLevel =
-                    params["storage.rocksdb.terark.indexNestLevel"].as<int>();
+                    params["storage.rocksdb.terarkdb.indexNestLevel"].as<int>();
             log() << "Terark IndexNestLevel: " << rocksGlobalOptions.indexNestLevel;
         }
-        if (params.count("storage.rocksdb.terark.checksumLevel")) {
+        if (params.count("storage.rocksdb.terarkdb.checksumLevel")) {
             rocksGlobalOptions.checksumLevel =
-                    params["storage.rocksdb.terark.checksumLevel"].as<int>();
+                    params["storage.rocksdb.terarkdb.checksumLevel"].as<int>();
             log() << "Terark ChecksumLevel: " << rocksGlobalOptions.checksumLevel;
         }
-        if (params.count("storage.rocksdb.terark.entropyAlgo")) {
+        if (params.count("storage.rocksdb.terarkdb.entropyAlgo")) {
             rocksGlobalOptions.entropyAlgo =
-                    params["storage.rocksdb.terark.entropyAlgo"].as<std::string>();
+                    params["storage.rocksdb.terarkdb.entropyAlgo"].as<std::string>();
             log() << "Terark EntropyAlgo: " << rocksGlobalOptions.entropyAlgo;
         }
-        if (params.count("storage.rocksdb.terark.terarkZipMinLevel")) {
+        if (params.count("storage.rocksdb.terarkdb.terarkZipMinLevel")) {
             rocksGlobalOptions.terarkZipMinLevel =
-                    params["storage.rocksdb.terark.terarkZipMinLevel"].as<int>();
+                    params["storage.rocksdb.terarkdb.terarkZipMinLevel"].as<int>();
             log() << "Terark TerarkZipMinLevel: " << rocksGlobalOptions.terarkZipMinLevel;
         }
-        if (params.count("storage.rocksdb.terark.useSuffixArrayLocalMatch")) {
+        if (params.count("storage.rocksdb.terarkdb.useSuffixArrayLocalMatch")) {
             rocksGlobalOptions.useSuffixArrayLocalMatch =
-                    params["storage.rocksdb.terark.useSuffixArrayLocalMatch"].as<bool>();
+                    params["storage.rocksdb.terarkdb.useSuffixArrayLocalMatch"].as<bool>();
             log() << "Terark UseSuffixArrayLocalMatch: " << rocksGlobalOptions.useSuffixArrayLocalMatch;
         }
-        if (params.count("storage.rocksdb.terark.warmUpIndexOnOpen")) {
+        if (params.count("storage.rocksdb.terarkdb.warmUpIndexOnOpen")) {
             rocksGlobalOptions.warmUpIndexOnOpen =
-                    params["storage.rocksdb.terark.warmUpIndexOnOpen"].as<bool>();
+                    params["storage.rocksdb.terarkdb.warmUpIndexOnOpen"].as<bool>();
             log() << "Terark WarmUpIndexOnOpen: " << rocksGlobalOptions.warmUpIndexOnOpen;
         }
-        if (params.count("storage.rocksdb.terark.warmUpValueOnOpen")) {
+        if (params.count("storage.rocksdb.terarkdb.warmUpValueOnOpen")) {
             rocksGlobalOptions.warmUpValueOnOpen =
-                    params["storage.rocksdb.terark.warmUpValueOnOpen"].as<bool>();
+                    params["storage.rocksdb.terarkdb.warmUpValueOnOpen"].as<bool>();
             log() << "Terark WarmUpValueOnOpen: " << rocksGlobalOptions.warmUpValueOnOpen;
         }
-        if (params.count("storage.rocksdb.terark.estimateCompressionRatio")) {
+        if (params.count("storage.rocksdb.terarkdb.estimateCompressionRatio")) {
             rocksGlobalOptions.estimateCompressionRatio =
-                    params["storage.rocksdb.terark.estimateCompressionRatio"].as<double>();
+                    params["storage.rocksdb.terarkdb.estimateCompressionRatio"].as<double>();
             log() << "Terark EstimateCompressionRatio: " << rocksGlobalOptions.estimateCompressionRatio;
         }
-        if (params.count("storage.rocksdb.terark.sampleRatio")) {
+        if (params.count("storage.rocksdb.terarkdb.sampleRatio")) {
             rocksGlobalOptions.sampleRatio =
-                    params["storage.rocksdb.terark.sampleRatio"].as<double>();
+                    params["storage.rocksdb.terarkdb.sampleRatio"].as<double>();
             log() << "Terark SampleRatio: " << rocksGlobalOptions.sampleRatio;
         }
-        if (params.count("storage.rocksdb.terark.localTempDir")) {
+        if (params.count("storage.rocksdb.terarkdb.localTempDir")) {
             rocksGlobalOptions.localTempDir =
-                    params["storage.rocksdb.terark.localTempDir"].as<std::string>();
+                    params["storage.rocksdb.terarkdb.localTempDir"].as<std::string>();
             log() << "Terark LocalTempDir: " << rocksGlobalOptions.localTempDir;
         }
-        if (params.count("storage.rocksdb.terark.indexType")) {
+        if (params.count("storage.rocksdb.terarkdb.indexType")) {
             rocksGlobalOptions.indexType =
-                    params["storage.rocksdb.terark.indexType"].as<std::string>();
+                    params["storage.rocksdb.terarkdb.indexType"].as<std::string>();
             log() << "Terark IndexType: " << rocksGlobalOptions.indexType;
         }
-        if (params.count("storage.rocksdb.terark.softZipWorkingMemLimit")) {
+        if (params.count("storage.rocksdb.terarkdb.softZipWorkingMemLimit")) {
             rocksGlobalOptions.softZipWorkingMemLimit =
-                    params["storage.rocksdb.terark.softZipWorkingMemLimit"].as<unsigned long long>();
+                    params["storage.rocksdb.terarkdb.softZipWorkingMemLimit"].as<unsigned long long>();
             log() << "Terark SoftZipWorkingMemLimit: " << rocksGlobalOptions.softZipWorkingMemLimit;
         }
-        if (params.count("storage.rocksdb.terark.hardZipWorkingMemLimit")) {
+        if (params.count("storage.rocksdb.terarkdb.hardZipWorkingMemLimit")) {
             rocksGlobalOptions.hardZipWorkingMemLimit =
-                    params["storage.rocksdb.terark.hardZipWorkingMemLimit"].as<unsigned long long>();
+                    params["storage.rocksdb.terarkdb.hardZipWorkingMemLimit"].as<unsigned long long>();
             log() << "Terark HardZipWorkingMemLimit: " << rocksGlobalOptions.hardZipWorkingMemLimit;
         }
-        if (params.count("storage.rocksdb.terark.smallTaskMemory")) {
+        if (params.count("storage.rocksdb.terarkdb.smallTaskMemory")) {
             rocksGlobalOptions.smallTaskMemory =
-                    params["storage.rocksdb.terark.smallTaskMemory"].as<unsigned long long>();
+                    params["storage.rocksdb.terarkdb.smallTaskMemory"].as<unsigned long long>();
             log() << "Terark SmallTaskMemory: " << rocksGlobalOptions.smallTaskMemory;
         }
-        if (params.count("storage.rocksdb.terark.indexCacheRatio")) {
+        if (params.count("storage.rocksdb.terarkdb.indexCacheRatio")) {
             rocksGlobalOptions.indexCacheRatio =
-                    params["storage.rocksdb.terark.indexCacheRatio"].as<double>();
+                    params["storage.rocksdb.terarkdb.indexCacheRatio"].as<double>();
             log() << "Terark IndexCacheRatio: " << rocksGlobalOptions.indexCacheRatio;
         }
-        if (params.count("storage.rocksdb.terark.zipThreads")) {
+        if (params.count("storage.rocksdb.terarkdb.zipThreads")) {
             rocksGlobalOptions.terarkZipThreads =
-                    params["storage.rocksdb.terark.zipThreads"].as<int>();
+                    params["storage.rocksdb.terarkdb.zipThreads"].as<int>();
             log() << "Terark ZipThreads: " << rocksGlobalOptions.terarkZipThreads;
         }
 

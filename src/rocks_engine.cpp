@@ -29,10 +29,6 @@
 
 #define MONGO_LOG_DEFAULT_COMPONENT ::mongo::logger::LogComponent::kStorage
 
-namespace terark {
-  void DictZipBlobStore_setZipThreads(int zipThreads); // an hidden api from terark::DictZipBlobStore
-}
-
 #include "mongo/platform/basic.h"
 #include "mongo/util/quick_exit.h"
 
@@ -81,6 +77,10 @@ namespace terark {
 #include <table/terark_zip_table.h>
 
 #define ROCKS_TRACE log()
+
+namespace terark {
+    void DictZipBlobStore_setZipThreads(int zipThreads); // an hidden api from terark::DictZipBlobStore
+}
 
 namespace mongo {
 
@@ -828,27 +828,47 @@ namespace mongo {
             options.soft_rate_limit = 2.5;
             options.hard_rate_limit = 3;
             options.level_compaction_dynamic_level_bytes = true;
-            options.write_buffer_size = rocksGlobalOptions.targetFileSizeBase;
-            options.target_file_size_base = rocksGlobalOptions.targetFileSizeBase;
-            options.target_file_size_multiplier = rocksGlobalOptions.targetFileSizeMultiplier;
-            options.max_bytes_for_level_base = options.write_buffer_size * 4;
-            options.max_bytes_for_level_multiplier = rocksGlobalOptions.targetFileSizeMultiplier;
+
+            unsigned long long targetFileSizeBase = rocksGlobalOptions.targetFileSizeBase;
+            int targetFileSizeMultiplier = rocksGlobalOptions.targetFileSizeMultiplier;
+            if (targetFileSizeBase == 0) {
+                targetFileSizeBase = 512ULL << 20;
+            }
+            if (targetFileSizeMultiplier == 0) {
+                targetFileSizeMultiplier = 5;
+            }
+            options.write_buffer_size = targetFileSizeBase;
+            options.target_file_size_base = targetFileSizeBase;
+            options.target_file_size_multiplier = targetFileSizeMultiplier;
+            options.max_bytes_for_level_base = targetFileSizeBase * 4;
+            options.max_bytes_for_level_multiplier = targetFileSizeMultiplier;
 
             terark::DictZipBlobStore_setZipThreads(rocksGlobalOptions.terarkZipThreads);
         }
         else {
             options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
 
-            options.write_buffer_size = 64 * 1024 * 1024;  // 64MB
             options.level0_slowdown_writes_trigger = 8;
             options.max_write_buffer_number = 4;
             options.max_background_compactions = 8;
             options.max_background_flushes = 2;
-            options.target_file_size_base = 64 * 1024 * 1024; // 64MB
             options.soft_rate_limit = 2.5;
             options.hard_rate_limit = 3;
             options.level_compaction_dynamic_level_bytes = true;
-            options.max_bytes_for_level_base = 512 * 1024 * 1024;  // 512 MB
+
+            unsigned long long targetFileSizeBase = rocksGlobalOptions.targetFileSizeBase;
+            int targetFileSizeMultiplier = rocksGlobalOptions.targetFileSizeMultiplier;
+            if (targetFileSizeBase == 0) {
+                targetFileSizeBase = 64ULL << 20;
+            }
+            if (targetFileSizeMultiplier == 0) {
+                targetFileSizeMultiplier = 1;
+            }
+            options.write_buffer_size = targetFileSizeBase;
+            options.target_file_size_base = targetFileSizeBase;
+            options.target_file_size_multiplier = targetFileSizeMultiplier;
+            options.max_bytes_for_level_base = targetFileSizeBase * 8;
+            options.max_bytes_for_level_multiplier = targetFileSizeMultiplier;
         }
         // This means there is no limit on open files. Make sure to always set ulimit so that it can
         // keep all RocksDB files opened.

@@ -45,9 +45,9 @@ namespace mongo {
               singleDeleteIndex(false),
               useSeparateOplogCF(false),
               //rocks add
-              targetFileSizeMultiplier(5),
+              targetFileSizeMultiplier(0),
               numLevels(7),
-              targetFileSizeBase(512ull << 20),
+              targetFileSizeBase(0),
               //terark begin
               terarkEnable(true),
               indexNestLevel(3),
