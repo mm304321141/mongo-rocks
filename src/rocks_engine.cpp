@@ -29,6 +29,10 @@
 
 #define MONGO_LOG_DEFAULT_COMPONENT ::mongo::logger::LogComponent::kStorage
 
+namespace terark {
+  void DictZipBlobStore_setZipThreads(int zipThreads); // an hidden api from terark::DictZipBlobStore
+}
+
 #include "mongo/platform/basic.h"
 #include "mongo/util/quick_exit.h"
 
@@ -830,7 +834,6 @@ namespace mongo {
             options.max_bytes_for_level_base = options.write_buffer_size * 4;
             options.max_bytes_for_level_multiplier = rocksGlobalOptions.targetFileSizeMultiplier;
 
-            void terark::DictZipBlobStore_setZipThreads(int zipThreads); // an hidden api from terark::DictZipBlobStore
             terark::DictZipBlobStore_setZipThreads(rocksGlobalOptions.terarkZipThreads);
         }
         else {
