@@ -322,25 +322,25 @@ namespace mongo {
             log() << "UseSeparateOplogCF: " << rocksGlobalOptions.useSeparateOplogCF;
         }
         //rocks add
-        if (params.count("storage.rocksdb.terarkdb.targetFileSizeMultiplier")) {
+        if (params.count("storage.rocksdb.targetFileSizeMultiplier")) {
             rocksGlobalOptions.targetFileSizeMultiplier =
-                    params["storage.rocksdb.terarkdb.targetFileSizeMultiplier"].as<int>();
+                    params["storage.rocksdb.targetFileSizeMultiplier"].as<int>();
             log() << "TargetFileSizeMultiplier: " << rocksGlobalOptions.targetFileSizeMultiplier;
         }
-        if (params.count("storage.rocksdb.terarkdb.numLevels")) {
+        if (params.count("storage.rocksdb.numLevels")) {
             rocksGlobalOptions.numLevels =
-                    params["storage.rocksdb.terarkdb.numLevels"].as<int>();
+                    params["storage.rocksdb.numLevels"].as<int>();
             log() << "NumLevels: " << rocksGlobalOptions.numLevels;
         }
-        if (params.count("storage.rocksdb.terarkdb.targetFileSizeBase")) {
+        if (params.count("storage.rocksdb.targetFileSizeBase")) {
             rocksGlobalOptions.targetFileSizeBase =
-                    params["storage.rocksdb.terarkdb.targetFileSizeBase"].as<unsigned long long>();
+                    params["storage.rocksdb.targetFileSizeBase"].as<unsigned long long>();
             log() << "TargetFileSizeBase: " << rocksGlobalOptions.targetFileSizeBase;
         }
         //terark begin
-        if (params.count("storage.rocksdb.terarkdb.terarkEnable")) {
+        if (params.count("storage.rocksdb.terarkdb.enabled")) {
             rocksGlobalOptions.terarkEnable =
-                    params["storage.rocksdb.terarkdb.terarkEnable"].as<bool>();
+                    params["storage.rocksdb.terarkdb.enabled"].as<bool>();
             log() << "Terark terarkEnable: " << rocksGlobalOptions.terarkEnable;
         }
         if (rocksGlobalOptions.terarkEnable) {
