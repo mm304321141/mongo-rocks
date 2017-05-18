@@ -122,7 +122,7 @@ namespace mongo {
         // terark begin
 
         rocksOptions
-                .addOptionChaining("storage.rocksdb.terark.terarkEnable",
+                .addOptionChaining("storage.rocksdb.terark.enabled",
                                    "terarkEnable",
                                    moe::Bool,
                                    "Terark enable.")
@@ -272,8 +272,8 @@ namespace mongo {
                 .addOptionChaining("storage.rocksdb.terark.zipThreads",
                                    "terarkZipThreads",
                                    moe::Int,
-                                   "Zip thread count for compress values, "
-                                   "if greater than CPU count, reset to the CPU count (default 8), ")
+                                   "Zip threads for value compression, "
+                                   "if greater than CPU count, use CPU count (default 8), ")
                 .validRange(1, 64)
                 .setDefault(moe::Value(8));
 
