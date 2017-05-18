@@ -87,7 +87,7 @@ namespace mongo {
                                "This is still experimental. "
                                "Use this only if you know what you're doing")
             .setDefault(moe::Value(false));
-	rocksOptions
+        rocksOptions
             .addOptionChaining("storage.rocksdb.useSeparateOplogCF",
                                "rocksdbSeparateOplogCF", moe::Bool,
                                "Use separate column-family to store oplogs. "
@@ -217,11 +217,11 @@ namespace mongo {
                 .hidden();
 
         rocksOptions
-            .addOptionChaining("storage.rocksdb.terark.localTempDir",
-                               "terarkLocalTempDir",
-                               moe::String,
-                               "TerarkZipTable needs to create temp files during compression")
-            .setDefault(moe::Value(std::string("/tmp")));
+                .addOptionChaining("storage.rocksdb.terark.localTempDir",
+                                   "terarkLocalTempDir",
+                                   moe::String,
+                                   "TerarkZipTable needs to create temp files during compression")
+                .setDefault(moe::Value(std::string("/tmp")));
 
         rocksOptions
                 .addOptionChaining("storage.rocksdb.terark.indexType",
@@ -267,6 +267,15 @@ namespace mongo {
                                    "is about only 10% when set to 0.001")
                 .setDefault(moe::Value(0.0))
                 .hidden();
+
+        rocksOptions
+                .addOptionChaining("storage.rocksdb.terark.zipThreads",
+                                   "terarkZipThreads",
+                                   moe::Int,
+                                   "Zip thread count for compress values, "
+                                   "if greater than CPU count, reset to the CPU count (default 8), ")
+                .validRange(1, 64)
+                .setDefault(moe::Value(8));
 
         // terark end
 
@@ -412,6 +421,11 @@ namespace mongo {
             rocksGlobalOptions.indexCacheRatio =
                     params["storage.rocksdb.terark.indexCacheRatio"].as<double>();
             log() << "Terark IndexCacheRatio: " << rocksGlobalOptions.indexCacheRatio;
+        }
+        if (params.count("storage.rocksdb.terark.zipThreads")) {
+            rocksGlobalOptions.terarkZipThreads =
+                    params["storage.rocksdb.terark.zipThreads"].as<int>();
+            log() << "Terark ZipThreads: " << rocksGlobalOptions.terarkZipThreads;
         }
 
         } // if (rocksGlobalOptions.terarkEnable)

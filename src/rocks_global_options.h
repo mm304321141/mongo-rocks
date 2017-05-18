@@ -64,7 +64,8 @@ namespace mongo {
               softZipWorkingMemLimit(16ull << 30),
               hardZipWorkingMemLimit(32ull << 30),
               smallTaskMemory(1200ull << 20),
-              indexCacheRatio(0.0)
+              indexCacheRatio(0.0),
+              terarkZipThreads(8)
               //terark end
         {}
 
@@ -105,6 +106,7 @@ namespace mongo {
         unsigned long long hardZipWorkingMemLimit;
         unsigned long long smallTaskMemory;
         double indexCacheRatio;
+        int terarkZipThreads;
         //terark end
     };
 

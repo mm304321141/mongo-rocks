@@ -829,6 +829,9 @@ namespace mongo {
             options.target_file_size_multiplier = rocksGlobalOptions.targetFileSizeMultiplier;
             options.max_bytes_for_level_base = options.write_buffer_size * 4;
             options.max_bytes_for_level_multiplier = rocksGlobalOptions.targetFileSizeMultiplier;
+
+            void terark::DictZipBlobStore_setZipThreads(int zipThreads); // an hidden api from terark::DictZipBlobStore
+            DictZipBlobStore_setZipThreads(terarkZipThreads);
         }
         else {
             options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
